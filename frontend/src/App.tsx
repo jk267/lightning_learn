@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
 
 function App() {
-  // State for opening a channel
+
+  // State for opening a channel.
   const [openFrom, setOpenFrom] = useState('');
   const [openTo, setOpenTo] = useState('');
   const [initialAmount, setInitialAmount] = useState('');
+
+
 
   // State for updating the balance (sending payment)
   const [payFrom, setPayFrom] = useState('');
