@@ -29,29 +29,43 @@ function App() {
   useEffect(() => {
     if (animationState === 'idle' || animationState === 'open') return;
 
+    let speed = 2;
+    let interval = 30;
+
+    if (animationState === 'opening' || animationState === 'closing') {
+      speed = 1;
+      interval = 50;
+    } else if (animationState === 'transacting') {
+      speed = 4;
+      interval = 20;
+    }
+
     const timer = setInterval(() => {
       setAnimationProgress(prev => {
         if (prev >= 100) {
           clearInterval(timer);
+
           if (animationState === 'opening') {
             setAnimationState('open');
           } else if (animationState === 'transacting') {
             setTimeout(() => setAnimationState('open'), 500);
           } else if (animationState === 'closing') {
-            // after closing animation, reset channel and state
             setTimeout(() => {
-              setAnimationState('idle');
-              setChannelData(null);
-            }, 500);
+              setChannelData(null); // Hide channel
+              setAnimationState('idle'); // ✅ Return to idle!
+            }, 700);
           }
+
           return 0;
         }
-        return prev + 2;
+
+        return prev + speed;
       });
-    }, 30);
+    }, interval);
 
     return () => clearInterval(timer);
   }, [animationState]);
+
 
   const openChannel = async () => {
     setAnimationState('opening');
@@ -89,15 +103,26 @@ function App() {
     setAnimationState('transacting');
     setAnimationProgress(0);
 
-    const channelId = `${payFrom}-${payTo}`;
+    const possibleChannelIds = [`${payFrom}-${payTo}`, `${payTo}-${payFrom}`];
+    const validChannelId = possibleChannelIds.find(id =>
+      channelData?.channelId === id
+    );
+
+    if (!validChannelId) {
+      setResponseMessage('❌ Error: Invalid channel participants');
+      setAnimationState('open');
+      return;
+    }
+
     try {
       const res = await fetch('http://localhost:3001/update-balance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ channelId, payFrom, payTo, amount: Number(amount) }),
+        body: JSON.stringify({ channelId: validChannelId, payFrom, payTo, amount: Number(amount) }),
       });
 
       const data = await res.json();
+
       if (!res.ok) {
         setResponseMessage(`❌ Error: ${data.error || 'Unknown error'}`);
         setAnimationState('open');
@@ -111,6 +136,7 @@ function App() {
       setAnimationState('open');
     }
   };
+
 
   const closeChannel = async () => {
     if (!channelData) return;
@@ -157,12 +183,38 @@ function App() {
       : 'opacity-100';
 
     return (
+
+
+
       <div className="relative h-32 w-full">
+        {/* Speed Indicator Above Blockchain */}
+        {/* Speed Indicator Above Blockchain */}
+        {(animationState === 'opening' || animationState === 'transacting' || animationState === 'closing') && (
+          <div className="absolute left-1/2 transform -translate-x-1/2 text-sm font-semibold z-10 transition-opacity duration-500">
+            {animationState === 'opening' && (
+              <div className="bg-red-100 text-red-600 px-3 py-1 rounded shadow">
+                Slower ⏳ On-chain Transaction
+              </div>
+            )}
+            {animationState === 'closing' && (
+              <div className="bg-orange-100 text-orange-600 px-3 py-1 rounded shadow">
+                Settling to Blockchain 🔒
+              </div>
+            )}
+            {animationState === 'transacting' && (
+              <div className="bg-green-100 text-green-600 px-3 py-1 rounded shadow">
+                Faster ⚡ Off-chain Payment
+              </div>
+            )}
+          </div>
+        )}
+
+
         {/* Blockchain blocks */}
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
           <div className="flex space-x-2">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="w-10 h-10 bg-yellow-500 rounded flex items-center justify-center text-xs font-bold shadow-md">BLK</div>
+            {[...Array(7)].map((_, i) => (
+              <div key={i} className="w-15 h-10 bg-yellow-500 rounded flex items-center justify-center text-xs font-bold shadow-md">BLOCK</div>
             ))}
           </div>
         </div>
@@ -183,7 +235,17 @@ function App() {
           <div className="absolute top-3/4 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
             <svg width="100" height="40">
               <line x1="10" y1="20" x2="90" y2="20" stroke="#CBD5E0" strokeWidth="4" />
-              <circle cx={10 + animationProgress * 0.8} cy="20" r="6" fill="#ECC94B" />
+              <circle
+                cx={
+                  payFrom < payTo
+                    ? 10 + animationProgress * 0.8 // left to right
+                    : 90 - animationProgress * 0.8 // right to left
+                }
+                cy="20"
+                r="6"
+                fill="#ECC94B"
+              />
+
             </svg>
             <div className="absolute top-0 left-0 text-xs text-gray-600">{payFrom.charAt(0)}</div>
             <div className="absolute top-0 right-0 text-xs text-gray-600">{payTo.charAt(0)}</div>
@@ -206,7 +268,7 @@ function App() {
           <nav className="hidden md:flex space-x-6 text-gray-600">
             <a href="#how-it-works" className="hover:text-indigo-700">How It Works</a>
             <a href="#simulator" className="hover:text-indigo-700">Simulator</a>
-            <a href="#applications" className="hover:text-indigo-700">Use Cases</a>
+            {/* <a href="#applications" className="hover:text-indigo-700">Use Cases</a> */}
             {/* <a href="#resources" className="hover:text-indigo-700">Resources</a> */}
           </nav>
           <button className="md:hidden text-gray-600" onClick={() => setMobileMenuOpen(p => !p)}>
@@ -259,14 +321,16 @@ function App() {
             Alex walks into a café and decides to buy a $5 coffee using Bitcoin. He’s excited to try out crypto in the real world—but is quickly met with a surprise: the network fee is <strong>$1.88</strong>, and the confirmation time is <strong>over 30 minutes</strong>.
           </p>
           <p className="text-gray-700 mb-3">
-            That means the fee alone is nearly <strong> 38%</strong> of the price of the coffee!
+            That means the fee alone is nearly <strong> 38%</strong> of the price of the coffee and the transaction will take longer than making the coffee itself!
 
             <br>
             </br>
-            The line behind him grows. Alex hesitates and thinks: <em>“Wouldn’t a credit card be faster... and cheaper?”</em>
+            <br>
+            </br>
+            Alex hesitates and thinks: <em>“credit card is faster...and cheaper”</em>
           </p>
           <p className="text-gray-700 mb-3">
-            Bitcoin is secure and decentralized—but on-chain transactions aren’t built for fast, low-value purchases. That’s the limitation the Lightning Network is designed to solve.
+            Bitcoin is secure and decentralized, but the normal transactions(on-chain) aren’t built for fast, low-value purchases. That’s the limitation the Lightning Network is designed to solve.
           </p>
 
           <div className="text-sm text-gray-500">
@@ -276,10 +340,11 @@ function App() {
           </div>
         </div>
       </div>
-      
+
 
       {/* Educational Section */}
-      <section id="how-it-works" className="py-12 bg-white">
+      <section id="how-it-works" className="py-12 bg-white scroll-mt-24">
+
         <div className="max-w-6xl mx-auto px-4">
           <h2 className="text-3xl font-bold text-center mb-12 text-gray-800">How the Lightning Network Works</h2>
 
@@ -331,7 +396,8 @@ function App() {
       </section>
 
       {/* Main Simulator Section */}
-      <section id="simulator" className="py-8 bg-gray-100">
+      <section id="simulator" className="py-8 bg-gray-100 scroll-mt-24">
+
         <div className="max-w-6xl mx-auto px-4">
           <h2 className="text-3xl font-bold text-center mb-6 text-gray-800">Interactive Lightning Network Simulator</h2>
           <p className="text-center text-gray-600 mb-2 max-w-2xl mx-auto">Experience how the Lightning Network operates by opening channels, making payments, and settling final balances.</p>
