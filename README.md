@@ -119,17 +119,6 @@ MIT License
 
 ---
 
-## 🙌 Acknowledgements
-
-Inspired by:
-- Andreas Antonopoulos
-- BTC Sessions
-- lightning.network documentation
-- River Financial
-- Bitcoin Magazine
-
----
-
 ## 📬 Contact
 
 For feedback or questions, feel free to reach out on [GitHub](https://github.com/jk267) or [LinkedIn](https://www.linkedin.com/in/david-kim-b86217266/).
